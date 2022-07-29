@@ -9,14 +9,17 @@ class Xquester(commands.Cog):
         self.client = client
         self.votes = {}
         self.player_count = 0
+        self.room_capacity = 0
         self.players = []
         self.limit = -1
         self.player_role = None
         self.category = None
         self.announcements = None
         self.register_channel = None
+        self.rooms_created = False
         self.rooms = {}
         self.room_roles = {}
+        self.player_room_roles = {}
 
     @commands.command()
     async def create_game(self, ctx, limit):
@@ -57,6 +60,8 @@ class Xquester(commands.Cog):
         room_count = int(room_count)
         room_capacity = int(room_capacity)
 
+        self.room_capacity = room_capacity
+
         if self.game_started and room_capacity * room_count >= self.player_count:
             guild = ctx.guild
 
@@ -66,6 +71,7 @@ class Xquester(commands.Cog):
                 await room.set_permissions(ctx.guild.default_role, read_messages=False, send_messages=False, read_message_history=False)
                 await room.set_permissions(room_role, read_messages=True, send_messages=True, read_message_history=False)
                 self.room_roles[room] = room_role
+                self.player_room_roles[room_role] = []
                 self.rooms[room] = 0
 
 
@@ -82,6 +88,10 @@ class Xquester(commands.Cog):
 
                 player_selection = self.players[indexes.pop(random.randrange(len(indexes)))]
                 await player_selection.add_roles(self.room_roles[room_selection])
+
+                self.player_room_roles[self.room_roles[room_selection]].append(player_selection)
+
+            self.rooms_created = True
         elif room_capacity * room_count < self.player_count:
             await ctx.send("You cannot create rooms with those constraints.")
         else:
@@ -90,9 +100,31 @@ class Xquester(commands.Cog):
 
     @commands.command()
     async def move(self, ctx, room_number):
-        pass
+        if self.rooms_created and len(self.player_room_roles[self.room_roles[ctx.channel]]) < self.room_capacity:
+            pass
+        elif len(self.player_room_roles[ctx.channel]) >= self.room_capacity:
+            ctx.send("This room is at room limit! Use ```-status``` to find an empty room.")
+        else:
+            ctx.send("Rooms have not been created yet.")
 
 
+    @commands.command()
+    async def status(self, ctx):
+        if self.rooms_created:
+            message = ""
+
+
+            print(self.player_room_roles)
+            for role in self.player_room_roles.keys():
+                message = message +  "\n **__" + role.name + ":__**  "
+                print(self.player_room_roles[role])
+                for player in self.player_room_roles[role]:
+                    message = message + player.name + ", "
+                message = message[:-2]
+                message = message + "\n" + str(len(self.player_room_roles[role])) + "/" + str(self.room_capacity)
+                   
+
+            await ctx.send(message)
         
 
 def setup(client):
