@@ -9,14 +9,14 @@ class Xquester(commands.Cog):
         self.client = client
         self.votes = {}
         self.player_count = 0
-        self.players = {}
+        self.players = []
         self.limit = -1
         self.player_role = None
         self.category = None
         self.announcements = None
         self.register_channel = None
-        self.rooms = []
-        self.room_roles = []
+        self.rooms = {}
+        self.room_roles = {}
 
     @commands.command()
     async def create_game(self, ctx, limit):
@@ -43,6 +43,7 @@ class Xquester(commands.Cog):
             await player.add_roles(self.player_role)
             self.players.append(player)
             self.player_count += 1
+            await ctx.send(ctx.message.author.mention + ", you have been registered!")
         elif not self.game_started:
             await ctx.send("The game hasn't even started yet!")
         elif ctx.channel.id != self.register_channel.id:
@@ -55,40 +56,41 @@ class Xquester(commands.Cog):
     async def create_rooms(self, ctx, room_count, room_capacity):
         room_count = int(room_count)
         room_capacity = int(room_capacity)
-        if self.game_started and room_capacity * room_count < len(self.player_count):
+
+        if self.game_started and room_capacity * room_count >= self.player_count:
             guild = ctx.guild
 
-            for i in range(int(room_count)):
-                room_role = await guild.create_role(name="Room " + str(room_count + 1))
-                room = await guild.create_text_channel("room-" + str(room_count + 1), category=self.category) 
+            for i in range(room_count):
+                room_role = await guild.create_role(name="Room " + str(i + 1))
+                room = await guild.create_text_channel("room-" + str(i + 1), category=self.category) 
                 await room.set_permissions(ctx.guild.default_role, read_messages=False, send_messages=False, read_message_history=False)
-                await room.set_permissions(ctx.guild.room_role, read_messages=True, send_messages=True, read_message_history=False)
-                self.room_roles.append(room_role)
-                self.rooms.append(room)
+                await room.set_permissions(room_role, read_messages=True, send_messages=True, read_message_history=False)
+                self.room_roles[room] = room_role
+                self.rooms[room] = 0
+
 
             indexes = [i for i in range(self.player_count)]
-            room_index = 0
 
             while indexes != []:
-                if room_index >= int(room_capacity):
-                    room_index = 0
+                
+                room_selection = random.choice(list(self.rooms.keys()))
 
-                player_selection = indexes.pop(random.randrange(len(indexes)))
-                room_selection = self.rooms[room_index]
-                self.players[player_selection].add_roles(self.room_roles[room_selection])
+                if self.rooms[room_selection] > room_capacity:
+                    continue
 
-                room_index += 1
-            
+                self.rooms[room_selection] += 1
 
-        
+                player_selection = self.players[indexes.pop(random.randrange(len(indexes)))]
+                await player_selection.add_roles(self.room_roles[room_selection])
+        elif room_capacity * room_count < self.player_count:
+            await ctx.send("You cannot create rooms with those constraints.")
+        else:
+            await ctx.send("No game in progress.")
+
 
     @commands.command()
     async def move(self, ctx, room_number):
         pass
-
-    
-
-
 
 
         
