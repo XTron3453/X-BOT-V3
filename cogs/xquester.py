@@ -1,4 +1,5 @@
 from atexit import register
+from click import command
 from discord.ext import commands
 import discord
 import random
@@ -100,8 +101,23 @@ class Xquester(commands.Cog):
 
     @commands.command()
     async def move(self, ctx, room_number):
+
+        print(self.player_room_roles[self.room_roles[ctx.channel]])
+        print(len(self.player_room_roles[self.room_roles[ctx.channel]]))
+
+
         if self.rooms_created and len(self.player_room_roles[self.room_roles[ctx.channel]]) < self.room_capacity:
-            pass
+
+            new_role = None
+
+            for role in self.room_roles.values():
+                if role.name == "Room " + int(room_number):
+                    await ctx.message.author.remove_roles(self.room_roles[ctx.channel])
+                    await ctx.message.author.add_roles(role)
+                    break
+            
+            await ctx.send("Room not found. Ensure that you typed in a room that exists using the ```-status``` command.")
+
         elif len(self.player_room_roles[ctx.channel]) >= self.room_capacity:
             ctx.send("This room is at room limit! Use ```-status``` to find an empty room.")
         else:
@@ -113,19 +129,25 @@ class Xquester(commands.Cog):
         if self.rooms_created:
             message = ""
 
-
             print(self.player_room_roles)
             for role in self.player_room_roles.keys():
-                message = message +  "\n **__" + role.name + ":__**  "
-                print(self.player_room_roles[role])
+                message = message +  "\n**__" + role.name + ":__**  "
                 for player in self.player_room_roles[role]:
                     message = message + player.name + ", "
                 message = message[:-2]
-                message = message + "\n" + str(len(self.player_room_roles[role])) + "/" + str(self.room_capacity)
-                   
+                message = message + "\n" + str(len(self.player_room_roles[role])) + "/" + str(self.room_capacity) 
 
             await ctx.send(message)
         
+    @commands.command()
+    async def delete_all(self, ctx):
+        for room in self.rooms.keys():
+            await room.delete()
+
+        for role in self.room_roles.values():
+            await role.delete()
+
+        self.player_role.delete()
 
 def setup(client):
 	client.add_cog(Xquester(client))
