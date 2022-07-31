@@ -69,6 +69,7 @@ class Xquester(commands.Cog):
             await submissions_channel.set_permissions(player, read_messages=True, send_messages=True) 
 
             self.player_submissions[player] = submissions_channel
+            self.player_votes[player] = None
 
             await ctx.send(ctx.message.author.mention + ", you have been registered!")
         elif not self.game_started:
@@ -78,7 +79,7 @@ class Xquester(commands.Cog):
         else:
             await ctx.send("Registration has ended. Try again next time!")
 
-        if self.player_count < self.limit:
+        if self.player_count >= self.limit:
             await ctx.send("**Registration has ended. Try again next time!**")
             await self.register_channel.set_permissions(self.player_role, send_messages=False)
 
@@ -271,8 +272,44 @@ class Xquester(commands.Cog):
 
     @commands.command()
     async def vote(self, ctx, name):
-        pass
+        voter = ctx.author
+
+        for submission_channel in self.player_submissions.values():
+            if submission_channel.id == ctx.channel.id:
+                for vote_candidate in self.players:
+                    if vote_candidate.name == name:
+                        self.player_votes[voter] = vote_candidate
+                        await ctx.send("**You have voted for " + vote_candidate.name + "**")
+                        return
+                
+                await ctx.send("Player not found. Please ensure that you spelled the player's name correctly. See a full list of names with ```-players```")
+                return
         
+        await ctx.send("You cannot send votes here! Looks for your submissions channel below.")
+
+    
+    @commands.command()
+    async def see_votes(self, ctx):
+        counts = {}
+        message = ""
+
+        for player in self.player_votes.keys():
+            if self.player_votes[player]:
+                message += player.name + ": *" + self.player_votes[player].name + "*\n"
+                if self.player_votes[player] in counts.keys():
+                    counts[self.player_votes[player]] += 1
+                else:
+                    counts[self.player_votes[player]] = 1
+            else:
+                message += player.name + ": **Not voted**\n"
+
+        message += "\n------Vote Count Summary------\n"
+
+        for count in counts:
+            message += "**" + count.name + ": " + str(counts[count]) + "**\n"
+
+        await ctx.send(message)
+
 
     
 
