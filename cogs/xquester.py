@@ -29,7 +29,11 @@ class Xquester(commands.Cog):
         self.role_rooms = {}
         # Role -> [Players]
         self.player_room_roles = {}
+        self.player_submissions = {}
         self.player_votes = {}
+        self.pause = False
+        self.timer_message = None
+        self.time_left = 0
 
     @commands.command()
     async def create_game(self, ctx, limit):
@@ -63,6 +67,9 @@ class Xquester(commands.Cog):
 
             submissions_channel = await guild.create_text_channel(player.name + "-submissions", category=self.submissions)
             await submissions_channel.set_permissions(player, read_messages=True, send_messages=True) 
+
+            self.player_submissions[player] = submissions_channel
+
             await ctx.send(ctx.message.author.mention + ", you have been registered!")
         elif not self.game_started:
             await ctx.send("The game hasn't even started yet!")
@@ -171,6 +178,9 @@ class Xquester(commands.Cog):
 
         for role in self.room_roles.values():
             await role.delete()
+        
+        for submission in self.player_submissions.values():
+            await submission.delete()
 
         await self.player_role.delete()
 
@@ -179,6 +189,9 @@ class Xquester(commands.Cog):
         await self.announcements.delete()
 
         await self.category.delete()
+
+        await self.submissions.delete()
+
 
     @commands.command()
     async def end_rooms(self, ctx):
@@ -196,7 +209,9 @@ class Xquester(commands.Cog):
             self.player_room_roles = {}
 
     @commands.command()
-    async def start_timer(self, ctx, time_input):
+    async def start_timer(self, ctx, time_input, message=None):
+        #Code adapted from: https://stackoverflow.com/questions/64150736/how-to-make-a-timer-command-in-discord-py
+
         try:
             try:
                 time = int(time_input)
@@ -209,36 +224,55 @@ class Xquester(commands.Cog):
             if time <= 0:
                 await ctx.send("Please enter a non-negative value.")
                 return
-            if time >= 3600:
-                message = await self.announcements.send(f"Timer: {time//3600}:{time%3600//60}:{time%60}")
-            elif time >= 60:
-                message = await self.announcements.send(f"Timer: {time//60}:{time%60}")
-            elif time < 60:
-                message = await self.announcements.send(f"Timer: {time}")
+            if not message:
+                if time >= 3600:
+                    message = await self.announcements.send(f"Timer: {time//3600}:{time%3600//60}:{time%60}")
+                elif time >= 60:
+                    message = await self.announcements.send(f"Timer: {time//60}:{time%60}")
+                elif time < 60:
+                    message = await self.announcements.send(f"Timer: {time}")
             while True:
-                try:
-                    await asyncio.sleep(1)
-                    time -= 1
-                    if time >= 3600:
-                        await message.edit(content=f"Timer: {time//3600}:{time %3600//60}:{time%60}")
-                    elif time >= 60:
-                        await message.edit(content=f"Timer: {time//60}:{time%60}")
-                    elif time < 60:
-                        await message.edit(content=f"Timer: {time}")
-                    if time <= 0:
-                        await message.edit(content=f"Timer: {time}")
-                        await self.announcements.send(f"{self.player_role.mention}s, the countdown has ended! Rooms are now closing.")
-                        await asyncio.sleep(10)
-                        await self.end_rooms(ctx)
+                if not self.pause:
+                    try:
+                        await asyncio.sleep(1)
+                        time -= 1
+                        if time >= 3600:
+                            await message.edit(content=f"Timer: {time//3600}:{time %3600//60}:{time%60}")
+                        elif time >= 60:
+                            await message.edit(content=f"Timer: {time//60}:{time%60}")
+                        elif time < 60:
+                            await message.edit(content=f"Timer: {time}")
+                        if time <= 0:
+                            await message.edit(content=f"Timer: {time}")
+                            await self.announcements.send(f"{self.player_role.mention}s, the countdown has ended! Rooms are now closing.")
+                            await asyncio.sleep(10)
+                            await self.end_rooms(ctx)
+                            break
+                    except:
                         break
-                except:
+                else:
+                    self.time_left = time
+                    self.timer_message = message
                     break
+
+
         except:
-            await ctx.send(f"Alright, first you gotta let me know how I\'m gonna time **{time_input}**....")
+            await ctx.send(f"Please input a valid time in seconds.")
+
+    @commands.command()
+    async def pause(self, ctx):
+        self.pause = True
+
+    @commands.command()
+    async def resume(self, ctx):
+        if self.pause:
+            self.pause = False
+            await self.start_timer(ctx, self.time_left, self.timer_message)
 
     @commands.command()
     async def vote(self, ctx, name):
         pass
+        
 
     
 
