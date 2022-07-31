@@ -311,6 +311,9 @@ class Xquester(commands.Cog):
         await ctx.send(message)
 
 
+    async def flush_votes(self):
+        for player in self.player_votes.keys():
+            self.player_votes[player] = None
     
 
 def setup(client):
