@@ -321,6 +321,8 @@ class Xquester(commands.Cog):
         for player in self.players:
             message += player.name + "\n"
 
+        await ctx.send(message)
+
     
 
 def setup(client):
