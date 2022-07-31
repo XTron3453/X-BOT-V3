@@ -311,12 +311,12 @@ class Xquester(commands.Cog):
         await ctx.send(message)
 
     @commands.command()
-    async def flush_votes(self):
+    async def flush_votes(self, ctx):
         for player in self.player_votes.keys():
             self.player_votes[player] = None
 
     @commands.command()
-    async def players(self):
+    async def players(self, ctx):
         message = "__------List of Players------__\n"
         for player in self.players:
             message += player.name + "\n"
