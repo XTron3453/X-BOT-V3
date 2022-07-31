@@ -282,7 +282,7 @@ class Xquester(commands.Cog):
                         await ctx.send("**You have voted for " + vote_candidate.name + "**")
                         return
                 
-                await ctx.send("Player not found. Please ensure that you spelled the player's name correctly. See a full list of names with ```-players```")
+                await ctx.send("Player not found. Please ensure that you spelled the player's name correctly. See a full list of names with ```-players```Use quotes (Ex. -vote \"My Name\") to vote for someone with spaces in their name.")
                 return
         
         await ctx.send("You cannot send votes here! Looks for your submissions channel below.")
@@ -310,10 +310,17 @@ class Xquester(commands.Cog):
 
         await ctx.send(message)
 
-
+    @commands.command()
     async def flush_votes(self):
         for player in self.player_votes.keys():
             self.player_votes[player] = None
+
+    @commands.command()
+    async def players(self):
+        message = "__------List of Players------__\n"
+        for player in self.players:
+            message += player.name + "\n"
+
     
 
 def setup(client):
