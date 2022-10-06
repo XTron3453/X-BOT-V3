@@ -388,7 +388,7 @@ class Xquester(commands.Cog):
                                     await self.question_channel.set_permissions(self.jury[0], read_messages=True, send_messages=False)
                                     self.jury.pop(0)
                                     if self.jury:
-                                        self.announcements.send(self.jury[0].mention + ", your questioning may begin.")
+                                        await self.announcements.send(self.jury[0].mention + ", your questioning may begin.")
                                         await self.question_channel.set_permissions(self.jury[0], read_messages=True, send_messages=True)
                                         await self.start_timer(ctx, 180, self.jury[0].mention + ", your questioning has concluded.", jury_time=True)
                                     else:
