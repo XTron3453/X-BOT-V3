@@ -1,5 +1,6 @@
 from atexit import register
 from email import message
+from http import client
 from unicodedata import category
 from click import command
 from discord.ext import commands
@@ -48,6 +49,33 @@ class Xquester(commands.Cog):
         self.timer_message = None
         self.time_left = 0
         self.admin = None
+        self.vote_panels = {}
+        self.reactions = [
+            '0️⃣',
+            '1️⃣',
+            '2️⃣',
+            '3️⃣',
+            '4️⃣',
+            '5️⃣',
+            '6️⃣',
+            '7️⃣',
+            '8️⃣',
+            '9️⃣',
+            '🔟',
+            '⚪',
+            '🔴',
+            '🟠',
+            '🟡',
+            '🟢',
+            '🔵',
+            '🟣',
+            '🟥',
+            '🟧',
+            '🟨',
+            '🟩',
+            '🟦',
+            '🟪'
+        ]
 
     @commands.command()
     async def create_game(self, ctx, limit):
@@ -535,7 +563,7 @@ class Xquester(commands.Cog):
 
 
     @commands.command()
-    async def remove_player(self, ctx, name, jury=False):
+    async def remove_player(self, ctx, name, complete=False, jury=False):
         if ctx.message.author == self.admin:
             for player in self.players:
                 if player.name == name:
@@ -544,10 +572,15 @@ class Xquester(commands.Cog):
                         self.jury.append(player)   
                         self.jury_submissions[player] = self.player_submissions[player]  
 
+                    if complete == True:
+                        self.player_confessionals[player].delete()
+                        self.player_submissions[player].delete()
+
                     self.players.remove(player)
                     self.player_votes.pop(player)
                     self.player_count -= 1      
-                    
+
+                    self.player_confessionals.pop(player)
                     self.player_submissions.pop(player)
                     await player.remove_roles(self.player_role)
                     await self.flush_votes(ctx)
@@ -580,6 +613,44 @@ class Xquester(commands.Cog):
             ctx.send("You may not perform this action.")
 
     @commands.command()
+    async def vote_panel(self, ctx):
+
+        description = ""
+
+        reaction_index = 0
+
+        for index, player in enumerate(self.players):
+            description = description + self.reactions[index] +  " - " + player.name + "\n"
+
+        reaction_index = 0
+
+        embed=discord.Embed(title="Vote Panel", description="**React with the number of the player you wish to vote**\n\n" + description)
+        embed.set_thumbnail(url="https://media.discordapp.net/attachments/797674938298662963/1027730360068481144/XQuesterIcon.png")
+        msg = await ctx.send(embed=embed)
+
+        for index, player in enumerate(self.players):
+            await msg.add_reaction(emoji=self.reactions[index])
+
+        self.vote_panels[ctx.message.author] = msg
+
+    
+
+    @commands.Cog.listener()
+    async def on_raw_reaction_add(self, payload):
+        voter = await self.client.fetch_user(payload.user_id)
+        channel = await self.client.fetch_channel(payload.channel_id)
+        msg = await channel.fetch_message(payload.message_id)
+        emoji = payload.emoji
+        try:
+            if channel == self.player_submissions[voter] and msg == self.vote_panels[voter]:
+                vote_candidate_index = self.reactions.index(emoji.name)
+                vote_candidate = self.players[vote_candidate_index]
+                self.player_votes[voter] = vote_candidate
+                await channel.send("**You have voted for " + vote_candidate.name + "**")
+        except:
+            pass
+
+    @commands.command()
     async def begin_jury(self, ctx):
         guild = ctx.guild
         await self.announcements.send('**Welcome to the Final Vote.**')
@@ -590,6 +661,7 @@ class Xquester(commands.Cog):
         await speech_channel.set_permissions(self.jury_role, read_messages=True, send_messages=False)
 
         await asyncio.sleep(3)
+
 
         await self.announcements.send('**Finalists' 
             + self.players[0].mention 
