@@ -1,11 +1,15 @@
 import os
-
+import asyncio
 import discord
 from dotenv import load_dotenv
 from discord.ext import commands
 from setuptools import setup, find_packages
 
-client = commands.Bot(command_prefix = '-')
+from cogs.xquester import Xquester
+
+intents = discord.Intents().all()
+
+client = commands.Bot(command_prefix = '-', intents=intents)
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
@@ -16,22 +20,29 @@ async def on_ready():
 
 @client.command()
 async def load(ctx, extension):
-	client.load_extension(f'cogs.{extension}')
+	await client.load_extension(f'cogs.{extension}')
 	print(f'Loaded {extension}.py')
 
 @client.command()
 async def unload(ctx, extension):
-	client.unload_extension(f'cogs.{extension}')
+	await client.unload_extension(f'cogs.{extension}')
 	print(f'Unloaded {extension}.py')
 
 @client.command()
 async def reload(ctx, extension):
-	client.unload_extension(f'cogs.{extension}')
-	client.load_extension(f'cogs.{extension}')
+	await client.unload_extension(f'cogs.{extension}')
+	await client.load_extension(f'cogs.{extension}')
 	print(f'Reloaded {extension}.py')
 
-for filename in os.listdir('./cogs'):
-	if filename.endswith('.py'):
-		client.load_extension(f'cogs.{filename[:-3]}')
+async def load_extensions():
+    for filename in os.listdir("./cogs"):
+        if filename.endswith(".py"):
+            await client.load_extension(f"cogs.{filename[:-3]}")
+            print("Loaded")
 
-client.run(TOKEN)
+async def main():
+    async with client:
+        await load_extensions()
+        await client.start(TOKEN)
+
+asyncio.run(main())

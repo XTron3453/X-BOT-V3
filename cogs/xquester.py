@@ -2,11 +2,13 @@ from atexit import register
 from email import message
 from http import client
 from unicodedata import category
+from black import target_version_option_callback
 from click import command
 from discord.ext import commands
 import discord
 import random
 import asyncio
+from discord.ui import Button, View
 
 class Xquester(commands.Cog):
     def __init__(self, client, name='Xquester Cog'):
@@ -50,32 +52,6 @@ class Xquester(commands.Cog):
         self.time_left = 0
         self.admin = None
         self.vote_panels = {}
-        self.reactions = [
-            '0️⃣',
-            '1️⃣',
-            '2️⃣',
-            '3️⃣',
-            '4️⃣',
-            '5️⃣',
-            '6️⃣',
-            '7️⃣',
-            '8️⃣',
-            '9️⃣',
-            '🔟',
-            '⚪',
-            '🔴',
-            '🟠',
-            '🟡',
-            '🟢',
-            '🔵',
-            '🟣',
-            '🟥',
-            '🟧',
-            '🟨',
-            '🟩',
-            '🟦',
-            '🟪'
-        ]
 
     @commands.command()
     async def create_game(self, ctx, limit):
@@ -418,12 +394,12 @@ class Xquester(commands.Cog):
                                     if self.jury:
                                         await self.announcements.send(self.jury[0].mention + ", your questioning may begin.")
                                         await self.question_channel.set_permissions(self.jury[0], read_messages=True, send_messages=True)
-                                        await self.start_timer(ctx, 180, self.jury[0].mention + ", your questioning has concluded.", jury_time=True)
+                                        await self.start_timer(ctx, 120, self.jury[0].mention + ", your questioning has concluded.", jury_time=True)
                                     else:
                                         await self.announcements.send("Questioning has concluded. " 
                                             + self.jury_role.mention
-                                            + "You have 5 minutes to submit your votes to your submissions.")
-                                        await self.start_timer(ctx, 300, self.jury_role.mention 
+                                            + "You have 3 minutes to submit your votes to your submissions.")
+                                        await self.start_timer(ctx, 180, self.jury_role.mention 
                                         + " and " 
                                         + self.player_role.mention 
                                         + ",**voting has concluded and a winner has been chosen. The Main Host will now annouce the results.**")
@@ -467,7 +443,6 @@ class Xquester(commands.Cog):
         else:
             ctx.send('You are not a player. You cannot perform this action.')
 
-
     @commands.command()
     async def vote_winner(self, ctx, name):
         if ctx.message.author in self.jury_submissions.keys():
@@ -479,6 +454,7 @@ class Xquester(commands.Cog):
                         if vote_candidate.name == name:
                             self.winner_votes[voter] = vote_candidate
                             await ctx.send("**You have voted for " + vote_candidate.name + "**")
+                            await ctx.author.send("**Thank you so much for playing X-Quester!**\n\nWe are so happy you decided to give us a try, and we would love to hear about your experience! Attached below is a survey, if you have a spare moment and would like to contribute to the further development of X-Quester, please consider filling it out.\n\nOn behalf of XTRON and myself, thank you again!\n\nhttps://forms.gle/M3pph6XXE5tWzpoX8")
                             return
                     
                     await ctx.send("Player not found. Please ensure that you spelled the player's name correctly. See a full list of names with ```-see_players```Use quotes (Ex. -vote \"My Name\") to vote for someone with spaces in their name.")
@@ -571,6 +547,9 @@ class Xquester(commands.Cog):
                         await player.add_roles(self.jury_role)      
                         self.jury.append(player)   
                         self.jury_submissions[player] = self.player_submissions[player]  
+                    
+                    if jury == False and complete == False:
+                        await player.send("**Thank you so much for playing X-Quester!**\n\nWe are so happy you decided to give us a try, and we would love to hear about your experience! Attached below is a survey, if you have a spare moment and would like to contribute to the further development of X-Quester, please consider filling it out.\n\nOn behalf of XTRON and myself, thank you again!\n\nhttps://forms.gle/M3pph6XXE5tWzpoX8")
 
                     if complete == True:
                         self.player_confessionals[player].delete()
@@ -590,14 +569,17 @@ class Xquester(commands.Cog):
         message = '''**-move {room number}    |   Move to a new room**
 **-see_players                        |   See all the players currently in the game**
 **-status                                   |   See which players are in each room**
-**-vote {playername}         |   Vote for a player (done in submissions)**'''
+**-vote_panel                |   Request a vote panel (done in submissions)**'''
         await ctx.send(message)
 
     @commands.command()
-    async def rocks(self, ctx):
+    async def rocks(self, ctx, exempt_players):
         if ctx.message.author == self.admin:
             await ctx.send("**__Beginning Rocks:__**")
             rock_players = self.players.copy()
+            for player in exempt_players:
+                rock_players.pop(player)
+
             while len(rock_players) != 1:
                 await asyncio.sleep(3)
                 await ctx.send(".")
@@ -610,45 +592,75 @@ class Xquester(commands.Cog):
         
             await ctx.send("**" + rock_players[0].mention + " has been eliminated.**")
         else:
-            ctx.send("You may not perform this action.")
+            await ctx.send("You may not perform this action.")
+
+    @commands.command()
+    async def explain_voting(self, ctx):
+        if ctx.message.author == self.admin:
+            for player in self.players:
+                await self.player_submissions[player].send(player.mention + "**, it is time to vote!**\n\n You may request a voting panel by typing **-vote_panel**")
+
 
     @commands.command()
     async def vote_panel(self, ctx):
+        for submission_channel in self.player_submissions.values():
+                if submission_channel.id == ctx.channel.id:
 
-        description = ""
+                    voter = ctx.message.author
 
-        reaction_index = 0
+                    embed=discord.Embed(title="Vote Panel", description="**Click the button the player you wish to vote**")
+                    embed.set_thumbnail(url="https://media.discordapp.net/attachments/797674938298662963/1027730360068481144/XQuesterIcon.png")
 
-        for index, player in enumerate(self.players):
-            description = description + self.reactions[index] +  " - " + player.name + "\n"
+                    self.vote_panels[voter] = {}
 
-        reaction_index = 0
+                    await ctx.send(embed=embed)
 
-        embed=discord.Embed(title="Vote Panel", description="**React with the number of the player you wish to vote**\n\n" + description)
-        embed.set_thumbnail(url="https://media.discordapp.net/attachments/797674938298662963/1027730360068481144/XQuesterIcon.png")
-        msg = await ctx.send(embed=embed)
+                    for player in self.players:
+                        view = View()
+                        button = Button(label=player.name, style=discord.ButtonStyle.primary)
+                        view.add_item(button)
+                        msg = await ctx.send(view=view)
+                        self.vote_panels[voter][msg] = player
 
-        for index, player in enumerate(self.players):
-            await msg.add_reaction(emoji=self.reactions[index])
+                    while True:
+                        selected_button = await self.client.wait_for("interaction")
+                        vote_candidate = self.vote_panels[voter][selected_button.message]
+                        if vote_candidate in self.players:
+                            self.player_votes[voter] = vote_candidate
+                            await selected_button.response.send_message("**You have voted for " + vote_candidate.name + "**")
+                        else:
+                            await selected_button.response.send_message("**This player is no longer in the game.**")
 
-        self.vote_panels[ctx.message.author] = msg
+    @commands.command()
+    async def assign_partners(self, ctx, title):
+        if ctx.message.author == self.admin and len(self.players) % 2 == 0:
+            potential_partners = self.players.copy()
 
-    
+            while potential_partners:
+                partner_1 = potential_partners.pop(random.randrange(len(potential_partners)))
+                partner_2 = potential_partners.pop(random.randrange(len(potential_partners)))
 
-    @commands.Cog.listener()
-    async def on_raw_reaction_add(self, payload):
-        voter = await self.client.fetch_user(payload.user_id)
-        channel = await self.client.fetch_channel(payload.channel_id)
-        msg = await channel.fetch_message(payload.message_id)
-        emoji = payload.emoji
-        try:
-            if channel == self.player_submissions[voter] and msg == self.vote_panels[voter]:
-                vote_candidate_index = self.reactions.index(emoji.name)
-                vote_candidate = self.players[vote_candidate_index]
-                self.player_votes[voter] = vote_candidate
-                await channel.send("**You have voted for " + vote_candidate.name + "**")
-        except:
-            pass
+                await self.player_submissions[partner_1].send(partner_1.mention + ", your " + title + " is " + partner_2.mention)
+                await self.player_submissions[partner_2].send(partner_2.mention + ", your " + title + " is " + partner_1.mention)
+        elif len(self.players) % 2 != 0:
+            await ctx.send("There is not an even number of players")
+        else:
+            await ctx.send("You may not perform this action.")
+
+    @commands.command()
+    async def assign_target(self, ctx, title):
+        if ctx.message.author == self.admin and len(self.players) % 2 == 0:
+            potential_targets = self.players.copy()
+
+            for player in self.players:
+                target = potential_targets.pop(random.randrange(len(potential_targets)))
+                while target == player:
+                    target = potential_targets.pop(random.randrange(len(potential_targets)))
+
+                await self.player_submissions[player].send(player.mention + ", your " + title + " is " + target.mention)
+        else:
+            await ctx.send("You may not perform this action.")
+
 
     @commands.command()
     async def begin_jury(self, ctx):
@@ -687,10 +699,15 @@ class Xquester(commands.Cog):
         await self.question_channel.set_permissions(self.jury[0], read_messages=True, send_messages=True)
         await self.question_channel.set_permissions(self.player_role, read_messages=True, send_messages=True)
 
-        await self.start_timer(ctx, 180, self.jury[0].mention + ", your questioning has concluded.", jury_time=True)
+        await self.start_timer(ctx, 120, self.jury[0].mention + ", your questioning has concluded.", jury_time=True)
 
-def setup(client):
-	client.add_cog(Xquester(client))
+
+    @commands.Cog.listener()
+    async def on_command_error(self, ctx, err):
+        print(err)
+
+async def setup(bot):
+    await bot.add_cog(Xquester(bot))
 
 
 
