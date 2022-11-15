@@ -8,6 +8,7 @@ from discord.ext import commands
 import discord
 import random
 import asyncio
+import datetime
 from discord.ui import Button, View
 
 class Xquester(commands.Cog):
@@ -124,6 +125,14 @@ class Xquester(commands.Cog):
     @commands.command()
     async def create_rooms(self, ctx, room_count, room_capacity, time):
         if ctx.message.author == self.admin:
+            await self.announcements.send("__--------------------__")
+            await self.announcements.send("**ROOM COUNT:** " + room_count)
+            await self.announcements.send("**ROOM CAPACITY:** " + room_capacity)
+            await self.announcements.send("**TIME:** " + str(datetime.timedelta(seconds=int(time))))
+            await self.announcements.send("__--------------------__")
+            await asyncio.sleep(10)
+            await self.announcements.send("Rooms will open shortly.")
+
             room_count = int(room_count)
             room_capacity = int(room_capacity)
 
@@ -164,6 +173,7 @@ class Xquester(commands.Cog):
 
                 message = f"{self.player_role.mention}s, the countdown has ended! Rooms are now closing."
 
+                await self.announcements.send(self.player_role.mention + ", begin play.")
                 await self.start_timer(ctx, time, message)
             elif room_capacity * room_count < self.player_count:
                 await ctx.send("You cannot create rooms with those constraints.")
@@ -227,7 +237,7 @@ class Xquester(commands.Cog):
 
         await self.announcements.send("__**How this works:**__")
         await asyncio.sleep(10)
-        await self.announcements.send("- The game will be broken up into round. At the end of each round, 1 or more players will be eliminated from the game.")
+        await self.announcements.send("- The game will be broken up into rounds. At the end of each round, 1 or more players will be eliminated from the game.")
         await asyncio.sleep(10)
         await self.announcements.send("- Every round will be timed, the exact amount of time to be announced at the beginning of the round by the Main Host.")
         await asyncio.sleep(10)
@@ -342,7 +352,7 @@ class Xquester(commands.Cog):
             
 
     @commands.command()
-    async def start_timer(self, ctx, time_input, end_message=None, jury_time=False):
+    async def start_timer(self, ctx, time_input, end_message=None, jury_time=False, regular_vote=True):
         #Code adapted from: https://stackoverflow.com/questions/64150736/how-to-make-a-timer-command-in-discord-py
         if ctx.message.author == self.admin:
             try:
@@ -394,7 +404,7 @@ class Xquester(commands.Cog):
                                     if self.jury:
                                         await self.announcements.send(self.jury[0].mention + ", your questioning may begin.")
                                         await self.question_channel.set_permissions(self.jury[0], read_messages=True, send_messages=True)
-                                        await self.start_timer(ctx, 120, self.jury[0].mention + ", your questioning has concluded.", jury_time=True)
+                                        await self.start_timer(ctx, 120, self.jury[0].mention + ", your questioning has concluded.", jury_time=True, regular_vote=False)
                                     else:
                                         await self.announcements.send("Questioning has concluded. " 
                                             + self.jury_role.mention
@@ -402,9 +412,16 @@ class Xquester(commands.Cog):
                                         await self.start_timer(ctx, 180, self.jury_role.mention 
                                         + " and " 
                                         + self.player_role.mention 
-                                        + ",**voting has concluded and a winner has been chosen. The Main Host will now annouce the results.**")
+                                        + ",**voting has concluded and a winner has been chosen. The Main Host will now annouce the results.**"
+                                        , regular_vote=False)
                             else:
-                                await self.end_rooms(ctx)
+                                if self.rooms_created:
+                                    await self.end_rooms(ctx)
+                                    self.rooms_created = False
+                                if regular_vote:
+                                    await self.announcements.send(self.player_role.mention + "s, you have 2 minutes to vote for a player in your submissions.")
+                                    await asyncio.sleep(10)
+                                    await self.start_timer(ctx, 120, self.player_role.mention + "s, voting has finished.", regular_vote=False)
                             return
                     else:
                         self.time = self.time
@@ -699,7 +716,7 @@ class Xquester(commands.Cog):
         await self.question_channel.set_permissions(self.jury[0], read_messages=True, send_messages=True)
         await self.question_channel.set_permissions(self.player_role, read_messages=True, send_messages=True)
 
-        await self.start_timer(ctx, 120, self.jury[0].mention + ", your questioning has concluded.", jury_time=True)
+        await self.start_timer(ctx, 120, self.jury[0].mention + ", your questioning has concluded.", jury_time=True, regular_vote=False)
 
 
     @commands.Cog.listener()
