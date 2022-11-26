@@ -10,6 +10,8 @@ import random
 import asyncio
 import datetime
 from discord.ui import Button, View
+import traceback
+import logging
 
 class Xquester(commands.Cog):
     def __init__(self, client, name='Xquester Cog'):
@@ -717,11 +719,6 @@ class Xquester(commands.Cog):
         await self.question_channel.set_permissions(self.player_role, read_messages=True, send_messages=True)
 
         await self.start_timer(ctx, 120, self.jury[0].mention + ", your questioning has concluded.", jury_time=True, regular_vote=False)
-
-
-    @commands.Cog.listener()
-    async def on_command_error(self, ctx, err):
-        print(err)
 
 async def setup(bot):
     await bot.add_cog(Xquester(bot))
