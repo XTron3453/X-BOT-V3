@@ -16,13 +16,6 @@ class Specgames(commands.Cog):
         self.engine = sqlalchemy.create_engine( "mysql+pymysql://" + os.getenv('SQL_USERNAME') + ":" + os.getenv('SQL_PASSWORD') + "@127.0.0.1/xbot")
 
     @commands.command()
-    async def add_player(self, ctx, player_name):
-        with self.engine.connect() as conn:
-            conn.execute("INSERT INTO xbot.players (player_name) VALUES ('" + player_name + "')")
-            await ctx.send("Player added.")
-
-        
-    @commands.command()
     async def add_draft(self, ctx, winner_pick, pick_1, pick_2, pick_3):
         with self.engine.connect() as conn:
 
@@ -172,6 +165,8 @@ class Specgames(commands.Cog):
             row_to_be_added.append(points)
             draft.loc[len(draft.index)] = row_to_be_added
 
+            print(draft.head(5))
+
             df_styled = draft.style.background_gradient()
 
             dfi.export(df_styled,"draft.png")
@@ -229,7 +224,7 @@ class Specgames(commands.Cog):
 
             df_styled = bootlist.style.background_gradient()
 
-            dfi.export(df_styled,"bootlist.png")
+            dfi.export(df_styled,"bootlist.png", table_conversion='matplotlib')
 
             with open('bootlist.png', 'rb') as f:
                 picture = discord.File(f)
