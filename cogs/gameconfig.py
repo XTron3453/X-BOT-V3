@@ -28,25 +28,32 @@ class GameConfig(commands.Cog):
             await ctx.send("Players added.")
 
     @commands.command()
-    async def set_tribes(self, ctx, *args):
+    async def set_role(self, ctx, type, *args):
         with self.engine.connect() as conn:
             roles = []
 
             try:
                 for tribe in args:
-                    await roles.append(ctx.guild.get_role(int(tribe[3:-1])))
+                    roles.append(ctx.guild.get_role(int(tribe[3:-1])))
             except:
+                await ctx.send('Error: one of the arguments passed is not a role. Try again with the ping.')
                 return
                 
             for role in roles:
-                conn.execute("INSERT INTO xbot.tribes (tribe_id, tribe_name) VALUES ('" + str(role.id) + "', '" + str(role.name) + "')")
+                conn.execute("INSERT INTO xbot.roles (role_id, role_name, role_type) VALUES ('" + str(role.id) + "', '" + str(role.name) + "', '" + str(type) + "')")
     
+            if len(args) == 1:
+                await ctx.send('Role set as: ' + type)
+            else:
+                await ctx.send('Roles set as: ' + type)
+
     @commands.command()
     async def create_alliance_category(self, ctx):
         with self.engine.connect() as conn:
             category = await ctx.guild.create_category("Alliances")
             if category:
                 conn.execute("INSERT INTO xbot.categories (category_id, category_name) VALUES ('" + str(category.id) + "', '" + str(category.name) + "')")
+
 
 
 
