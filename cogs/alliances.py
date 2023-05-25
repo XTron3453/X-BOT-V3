@@ -3,7 +3,7 @@ from discord.ext import commands
 import discord
 import random
 import asyncio
-import datetime
+from datetime import datetime
 from discord.ui import Button, View
 import os
 import pandas as pd
@@ -68,6 +68,16 @@ class Alliances(commands.Cog):
             return
         
         return spectator_role
+    
+    async def duplicate_alliance_check(self, conn, ctx):
+        try:
+            spectator_id = conn.execute("SELECT alliance_id, creation_date COUNT(*) FROM users GROUP BY name, email HAVING COUNT(*) > 1").first()[0]
+            spectator_role = ctx.guild.get_role(int(spectator_id))
+        except:
+            await ctx.send(ctx.author.mention + ", no spectator role has been set up.")
+            return
+        
+        return spectator_role
 
 
     @commands.command()
@@ -84,7 +94,7 @@ class Alliances(commands.Cog):
                 alliance_members.append(await self.get_player_id_by_name(conn, ctx, player_name))
 
             if len(alliance_members) > 1:
-                order_id_query = '(alliance_id, alliance_name, player_list)'
+                order_id_query = '(alliance_id, alliance_name, player_list, creation_date)'
                 player_id_query = str(ctx.author.id) + "-"
                 initial_alliance_names = str(ctx.author.name).lower() + "-"
                 description_names = ctx.author.name + ', '
@@ -98,7 +108,7 @@ class Alliances(commands.Cog):
                 initial_alliance_names = initial_alliance_names[:-1]
                 description_names = description_names[:-2]
 
-                description = description_names + " | Requested by " + str(ctx.author.name) + " | Made on " + str(datetime.date.today())
+                description = description_names + " | Requested by " + str(ctx.author.name) + " | Made on " + str(datetime.today())
 
                 try:
                     if len(set(alliance_members)) == len(alliance_members):
@@ -111,7 +121,7 @@ class Alliances(commands.Cog):
                             player = await ctx.guild.fetch_member(player_id)
                             await alliance.set_permissions(player, read_messages=True, send_messages=True)
 
-                        player_id_query = "('" + str(alliance.id) + "', '" + initial_alliance_names + "', '" +   player_id_query + "')"
+                        player_id_query = "('" + str(alliance.id) + "', '" + initial_alliance_names + "', '" +   player_id_query + "', '" + str(datetime.now().strftime('%Y-%m-%d %H:%M:%S')) + "')"
 
                         conn.execute('INSERT INTO xbot.alliances ' + order_id_query + ' VALUES ' + player_id_query)
                     else:
