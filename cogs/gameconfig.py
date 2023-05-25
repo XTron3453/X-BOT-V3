@@ -48,11 +48,11 @@ class GameConfig(commands.Cog):
                 await ctx.send('Roles set as: ' + type)
 
     @commands.command()
-    async def create_alliance_category(self, ctx):
+    async def create_category(self, ctx, name):
         with self.engine.connect() as conn:
-            category = await ctx.guild.create_category("Alliances")
+            category = await ctx.guild.create_category(name)
             if category:
-                conn.execute("INSERT INTO xbot.categories (category_id, category_name) VALUES ('" + str(category.id) + "', '" + str(category.name) + "')")
+                conn.execute("INSERT INTO xbot.categories (category_id, category_name) VALUES ('" + str(category.id) + "', '" + name + "')")
 
 
 
