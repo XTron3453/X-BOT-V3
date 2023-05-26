@@ -6,7 +6,6 @@ from discord.ext import commands
 from setuptools import setup, find_packages
 import logging
 
-
 intents = discord.Intents().all()
 
 logging.basicConfig(level=logging.INFO)
