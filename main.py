@@ -6,7 +6,6 @@ from discord.ext import commands
 from setuptools import setup, find_packages
 import logging
 
-from cogs.xquester import Xquester
 
 intents = discord.Intents().all()
 
