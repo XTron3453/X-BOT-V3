@@ -20,6 +20,8 @@ class Alliances(commands.Cog):
     async def get_alliance(self, conn, ctx, alliance=None):
         if not alliance:
             potential_id = str(ctx.channel.id)
+        elif len(alliance) == 19:
+            potential_id = alliance
         else:
             potential_id = alliance[2:-1]
 
@@ -71,14 +73,28 @@ class Alliances(commands.Cog):
     
     async def duplicate_alliance_check(self, conn, ctx):
         try:
-            spectator_id = conn.execute("SELECT alliance_id, creation_date COUNT(*) FROM users GROUP BY name, email HAVING COUNT(*) > 1").first()[0]
-            spectator_role = ctx.guild.get_role(int(spectator_id))
+            duplicate_alliances = conn.execute("SELECT * FROM xbot.alliances WHERE alliance_id NOT IN (SELECT alliance_id FROM xbot.alliances GROUP BY player_list HAVING COUNT(*) = 1) ORDER BY player_list").fetchall()
         except:
-            await ctx.send(ctx.author.mention + ", no spectator role has been set up.")
+            await ctx.send(ctx.author.mention + ", there was a problem retrieving duplicate alliances.")
             return
-        
-        return spectator_role
 
+        duplicates_to_delete = []
+        current_duplicate = None
+
+        for duplicate in duplicate_alliances:
+            if current_duplicate == None:   
+                current_duplicate = duplicate
+                continue
+
+            if duplicate[2] == current_duplicate[2]:
+                if duplicate[3] > current_duplicate[3]:
+                    await self.archive_alliance(ctx, current_duplicate[0], from_duplicate=True)
+                else:
+                    await self.archive_alliance(ctx, duplicate[0], from_duplicate=True)
+                    continue
+                    
+            current_duplicate = duplicate
+            
 
     @commands.command()
     async def create_alliance(self, ctx, *args):
@@ -144,11 +160,17 @@ class Alliances(commands.Cog):
                 await ctx.send(ctx.author.mention + ", can't send new name to database.")   
 
     @commands.command()
-    async def archive_alliance(self, ctx, alliance=None):
+    async def archive_alliance(self, ctx, alliance=None, from_duplicate=False):
         with self.engine.connect() as conn:
             alliance_category = await self.get_category(conn, ctx, "Archived Alliances")
             alliance = await self.get_alliance(conn, ctx, alliance)
             alliance_members = await self.get_alliance_member_ids(conn, ctx, alliance)
+
+
+            if alliance.category.name == "Archived Alliances":
+                if not from_duplicate:
+                    await ctx.send(ctx.author.mention + ', this alliance has already been archived.')
+                return
 
             for player_id in alliance_members:
                 player = await ctx.guild.fetch_member(player_id)
@@ -156,6 +178,8 @@ class Alliances(commands.Cog):
 
             await alliance.edit(category=alliance_category)
             await alliance.send("Alliance archived.")
+
+            await self.duplicate_alliance_check(conn, ctx)
 
     @commands.command()
     async def remove_player_from_alliance(self, ctx, player_name, alliance=None):
@@ -188,6 +212,11 @@ class Alliances(commands.Cog):
                     await self.archive_alliance(ctx, pass_alliance)
             else:
                 await ctx.send(ctx.author.mention + ', this player in not in this alliance.')
+
+    @commands.command()
+    async def test(self, ctx):
+        with self.engine.connect() as conn:
+            await self.duplicate_alliance_check(conn, ctx)
 
 
 
